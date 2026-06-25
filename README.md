@@ -2,6 +2,10 @@
 
 **Agent Rita** is a custom copilot agent for [OpenBB Workspace](https://pro.openbb.co). It searches the widgets on your dashboards, fetches their data, runs SQL over that data in-process, builds and edits dashboards, and streams back cited answers — on its own, with no other services required.
 
+<div align="center">
+  <img src="https://openbb-cms.directus.app/assets/b0781163-9d61-4f1e-b510-519fdf845244" alt="Logo" width="600">
+</div>
+
 An **optional companion MCP server** (in [`mcp-server/`](./mcp-server)) adds capabilities the agent doesn't need to function: web search, web-page fetch, Mermaid diagrams, Python execution, and document RAG. Run the agent by itself and everything in the first paragraph still works; add the MCP server when you want those extras.
 
 Built on Bun + Hono + the Vercel AI SDK + the Model Context Protocol.
