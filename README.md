@@ -384,6 +384,9 @@ The picked model is bound to the chat. Change it in the settings wheel, then **s
 **Ollama works locally but not from the Docker container (connection refused).**
 Inside a container, `localhost` is the container itself, not your host machine. Point `OLLAMA_BASE_URL` at `http://host.docker.internal:11434/api` instead of `http://localhost:11434/api`.
 
+**Ollama errors immediately — a `Model error` in chat / a 404 on `/api/chat`.**
+The agent advertises Ollama ids like `ollama:gpt-oss:20b`, `ollama:qwen3.5:9b`, `ollama:gemma4:e4b` — but the tag after `ollama:` must be a model you've **actually pulled**, matching exactly. If it isn't, Ollama 404s the chat request and the agent surfaces a `Model error`. Check what's installed with `ollama list` and pull the one you want (`ollama pull qwen3.5:9b`).
+
 **Do I need the companion MCP server?**
 No. The agent runs fully standalone — widget search, data, SQL, dashboards, and skills all work with `bun run dev:agent` alone. The MCP server only adds web search, fetch, diagrams, Python execution, and document RAG.
 
