@@ -387,5 +387,8 @@ Inside a container, `localhost` is the container itself, not your host machine. 
 **Do I need the companion MCP server?**
 No. The agent runs fully standalone — widget search, data, SQL, dashboards, and skills all work with `bun run dev:agent` alone. The MCP server only adds web search, fetch, diagrams, Python execution, and document RAG.
 
+**Why does document RAG need `OPENAI_API_KEY` even when I run chat on another provider?**
+Document RAG (`query_documents` / `list_documents`) lives on the companion MCP server and embeds your uploaded docs with OpenAI's `text-embedding-3-small` to build the per-conversation vector store. Embeddings are a separate model call from chat, and the embedding provider is currently hard-wired to OpenAI — so even if your chat model is Groq / OpenRouter / Ollama, doc RAG still needs an OpenAI key (embeddings are cheap: ~$0.02 per 1M tokens). Without the key those two tools are simply **not registered**; everything else (the core agent plus the rest of the MCP server) keeps working. `RITA_EMBED_MODEL` only swaps the OpenAI model id, not the provider.
+
 **"No AI providers configured" on startup.**
 Set at least one of `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, or `GROQ_API_KEY`, or point `OLLAMA_BASE_URL` at a running Ollama.
