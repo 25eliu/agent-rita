@@ -87,6 +87,63 @@ describe("mapSearchResult", () => {
     expect(items).toHaveLength(1);
     expect(items[0]?.text).toBe("raw");
   });
+
+  it("drops a javascript: embed_url but keeps a valid image_url in the artifact", () => {
+    const structured = {
+      cards: [
+        {
+          title: "Bad Embed",
+          embed_url: "javascript:alert(1)",
+          image_url: "https://img.tako.com/ok.png",
+        },
+      ],
+      web_results: [],
+    };
+    const items = mapSearchResult("t", structured);
+    const artifactEntry = items.find((i) => i.text.includes('"artifact"'));
+    expect(artifactEntry).toBeDefined();
+    const parsed = JSON.parse(artifactEntry!.text) as { artifact: { content: string } };
+    expect(parsed.artifact.content).toContain('src="https://img.tako.com/ok.png"');
+    expect(parsed.artifact.content).not.toContain("javascript:");
+  });
+
+  it("emits no artifact, no ack, and no citation when the card's only urls are javascript:", () => {
+    const structured = {
+      cards: [
+        {
+          title: "All Bad",
+          embed_url: "javascript:alert(1)",
+          webpage_url: "javascript:alert(1)",
+        },
+      ],
+      web_results: [],
+    };
+    const items = mapSearchResult("plain text", structured);
+    expect(items.some((i) => i.text.includes('"artifact"'))).toBe(false);
+    expect(items.some((i) => i.text.includes('"citation"'))).toBe(false);
+    const textEntry = items.find((i) => i.text.startsWith("plain text"));
+    expect(textEntry?.text).toBe("plain text");
+  });
+
+  it("salvages valid cards and web results when one web_results entry is malformed", () => {
+    const structured = {
+      cards: [
+        {
+          title: "Good Card",
+          webpage_url: "https://tako.com/card/good",
+          image_url: "https://img.tako.com/good.png",
+        },
+      ],
+      web_results: [
+        { title: "Good Web Result", url: "https://good.example.com" },
+        { snippet: "no url" },
+      ],
+    };
+    const items = mapSearchResult("t", structured);
+    expect(items.some((i) => i.text.includes('"artifact"'))).toBe(true);
+    const citations = items.filter((i) => i.text.includes('"citation"'));
+    expect(citations).toHaveLength(2);
+  });
 });
 
 describe("mapAnswerResult", () => {

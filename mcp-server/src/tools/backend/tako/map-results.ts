@@ -32,7 +32,7 @@ const webResultSchema = z
 const searchStructuredSchema = z
   .object({
     cards: z.array(cardSchema).optional(),
-    web_results: z.array(webResultSchema).optional(),
+    web_results: z.array(z.unknown()).optional(),
   })
   .passthrough();
 
@@ -57,6 +57,15 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+function isHttpUrl(u: string): boolean {
+  try {
+    const p = new URL(u).protocol;
+    return p === "http:" || p === "https:";
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Build the top-card artifact html. Contains BOTH the interactive iframe and
  * a static image + source link: if the Workspace sanitizer strips iframes
@@ -65,20 +74,22 @@ function escapeHtml(s: string): string {
  * without a runtime probe.
  */
 function topCardHtml(card: TakoCard): string | null {
-  if (!card.embed_url && !card.image_url) return null;
+  const hasEmbed = !!card.embed_url && isHttpUrl(card.embed_url);
+  const hasImage = !!card.image_url && isHttpUrl(card.image_url);
+  if (!hasEmbed && !hasImage) return null;
   const title = escapeHtml(card.title ?? "Tako chart");
   const parts: string[] = [];
-  if (card.embed_url) {
+  if (hasEmbed) {
     parts.push(
-      `<iframe src="${escapeHtml(card.embed_url)}" title="${title}" loading="lazy" style="width:100%;height:420px;border:0"></iframe>`,
+      `<iframe src="${escapeHtml(card.embed_url as string)}" title="${title}" loading="lazy" style="width:100%;height:420px;border:0"></iframe>`,
     );
   }
-  if (card.image_url) {
+  if (hasImage) {
     parts.push(
-      `<img src="${escapeHtml(card.image_url)}" alt="${title}" style="max-width:100%;height:auto">`,
+      `<img src="${escapeHtml(card.image_url as string)}" alt="${title}" style="max-width:100%;height:auto">`,
     );
   }
-  if (card.webpage_url) {
+  if (card.webpage_url && isHttpUrl(card.webpage_url)) {
     parts.push(`<p><a href="${escapeHtml(card.webpage_url)}">View source on Tako</a></p>`);
   }
   return `<div style="font-family:system-ui,sans-serif">${parts.join("\n")}</div>`;
@@ -97,17 +108,23 @@ function citationItems(pairs: { url: string; title: string }[]): ContentItem[] {
 
 export function mapSearchResult(text: string, structured: unknown): ContentItem[] {
   const parsed = searchStructuredSchema.safeParse(structured);
-  if (!parsed.success || structured == null) return [textItem(text)];
+  if (!parsed.success) return [textItem(text)];
 
   const cards = parsed.data.cards ?? [];
-  const webResults = parsed.data.web_results ?? [];
+  const webResults: { title: string; url: string }[] = [];
+  for (const w of parsed.data.web_results ?? []) {
+    const wr = webResultSchema.safeParse(w);
+    if (wr.success) webResults.push(wr.data);
+  }
 
   const pairs: { url: string; title: string }[] = [];
   for (const c of cards) {
-    if (c.webpage_url) pairs.push({ url: c.webpage_url, title: c.title ?? "Tako chart" });
+    if (c.webpage_url && isHttpUrl(c.webpage_url)) {
+      pairs.push({ url: c.webpage_url, title: c.title ?? "Tako chart" });
+    }
   }
   for (const w of webResults) {
-    pairs.push({ url: w.url, title: w.title });
+    if (isHttpUrl(w.url)) pairs.push({ url: w.url, title: w.title });
   }
 
   const items: ContentItem[] = [];
@@ -147,7 +164,7 @@ export function mapContentsResult(
   tableName: string,
 ): ContentItem[] {
   const parsed = contentsStructuredSchema.safeParse(structured);
-  if (!parsed.success || structured == null) return [textItem(text)];
+  if (!parsed.success) return [textItem(text)];
 
   const records = parsed.data.records ?? [];
   if (records.length === 0) return [textItem(text)];
