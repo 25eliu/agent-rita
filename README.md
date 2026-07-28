@@ -30,7 +30,7 @@ Built on Bun + Hono + the Vercel AI SDK + the Model Context Protocol.
 - [Bun](https://bun.sh) v1.x
 - An [OpenBB Workspace](https://pro.openbb.co) account (free) — needed to use the agent from the Workspace UI
 - At least one LLM provider key: `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, or `GROQ_API_KEY` — or a local [Ollama](https://ollama.com) endpoint via `OLLAMA_BASE_URL`
-- Optional, only for the companion MCP server: `TAVILY_API_KEY` (web search), `DAYTONA_API_KEY` (Python execution), `OPENAI_API_KEY` (document-RAG embeddings)
+- Optional, only for the companion MCP server: `TAKO_API_TOKEN` (full Tako toolset; search/answer/coverage work keyless on the free tier), `TAVILY_API_KEY` (web search fallback when Tako is disabled), `DAYTONA_API_KEY` (Python execution), `OPENAI_API_KEY` (document-RAG embeddings)
 
 ### Run it
 
@@ -141,7 +141,11 @@ Stateless / heavy / cold-start capabilities, exposed over Streamable HTTP MCP. N
 
 | Tool | Backend | Notes |
 |---|---|---|
-| `web_search` | Tavily | Returns text + web citations via `$rita_kind` |
+| `tako_search` | Tako hosted MCP | Live data graph + web search; top card renders as a chart artifact, sources become citations. Keyless free tier; `TAKO_ENABLED=false` disables |
+| `tako_answer` | Tako hosted MCP | Grounded prose answer to one data question, with citations |
+| `tako_available_data` | Tako hosted MCP | Free coverage lookup for one entity/metric before searching |
+| `tako_contents` | Tako hosted MCP | Rows behind a result URL become a SQL-queryable table; registered only with `TAKO_API_TOKEN` |
+| `web_search` | Tavily | Registered only when `TAKO_ENABLED=false`; returns text + web citations via `$rita_kind` |
 | `fetch_webpage` | Turndown | HTML → markdown, capped at 20 000 chars |
 | `mermaid_diagram` | mermaid-isomorphic (Playwright Chromium) | Renders Mermaid to SVG server-side, returns an `html` artifact; registered only when the Chromium binary is installed |
 | `execute_code` | Daytona Python sandbox | Per-conversation; gated by `DAYTONA_API_KEY` |
@@ -349,7 +353,10 @@ PORT                  # Agent port (default 7777)
 **Companion MCP server (`mcp-server/`):**
 
 ```
-TAVILY_API_KEY          # Required for web_search (otherwise the tool returns "not configured")
+TAKO_API_TOKEN          # Optional — full Tako toolset + account limits (keyless = anonymous free tier)
+TAKO_ENABLED            # Optional — "false" disables Tako and restores Tavily web_search
+TAKO_MCP_URL            # Optional — override the Tako MCP endpoint (default https://mcp.tako.com/mcp)
+TAVILY_API_KEY          # Used only when TAKO_ENABLED=false
 OPENAI_API_KEY          # Required for query_documents / list_documents (embeddings); both unregistered without it
 DAYTONA_API_KEY         # Required for execute_code (otherwise execute_code is unregistered)
 COMPANION_TOOLS_ENABLED # "true" registers the 18 Path-B workspace bridge tools + prompts + app-builder resources (default false)
@@ -399,3 +406,9 @@ Document RAG (`query_documents` / `list_documents`) lives on the companion MCP s
 
 **"No AI providers configured" on startup.**
 Set at least one of `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, or `GROQ_API_KEY`, or point `OLLAMA_BASE_URL` at a running Ollama.
+
+**Where did web_search go?**
+Tako replaced Tavily as the default search: `tako_search` / `tako_answer` / `tako_available_data` register by default and work keyless on Tako's anonymous free tier (10 requests/min). Set `TAKO_ENABLED=false` (plus `TAVILY_API_KEY`) to restore the Tavily `web_search` tool.
+
+**Should I also add mcp.tako.com directly in the Workspace?**
+Not while the companion server is running — both would advertise the same tool names, and duplicate registrations shadow each other. Use the companion server's built-in Tako tools (they add chart artifacts, citations, and SQL tables that a direct registration cannot), or connect Tako directly only if you run the agent without the companion server.
