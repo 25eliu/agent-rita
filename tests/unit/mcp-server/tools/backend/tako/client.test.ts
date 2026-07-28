@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { upstream } from "./upstream-mock";
-import {
+
+const {
   isTakoEnabled,
   isTakoAuthed,
   withFreeTierHint,
   callTakoTool,
   resetTakoClientForTests,
-} from "../../../../../../mcp-server/src/tools/backend/tako/client";
+} = await import("../../../../../../mcp-server/src/tools/backend/tako/client");
 
 const savedEnv = {
   TAKO_ENABLED: process.env.TAKO_ENABLED,
