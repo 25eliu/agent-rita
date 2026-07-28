@@ -34,38 +34,25 @@ export interface TakoCallResult {
   isError: boolean;
 }
 
-let clientPromise: Promise<{ callTool: (params: unknown, unknown_: unknown, opts: unknown) => Promise<unknown> }> | null = null;
+let clientPromise: Promise<unknown> | null = null;
 
-async function connect(): Promise<{ callTool: (params: unknown, unknown_: unknown, opts: unknown) => Promise<unknown> }> {
-  // Dynamic import allows mock.module to intercept during testing
-  const { Client } = (await import("@modelcontextprotocol/sdk/client/index.js")) as unknown as {
-    Client: {
-      new (options: { name: string; version: string }): {
-        connect(transport: unknown): Promise<void>;
-        callTool(params: unknown, unknown_: unknown, opts: unknown): Promise<unknown>;
-      };
-    };
-  };
-  const { StreamableHTTPClientTransport } = (await import(
+async function connect(): Promise<unknown> {
+  const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
+  const { StreamableHTTPClientTransport } = await import(
     "@modelcontextprotocol/sdk/client/streamableHttp.js"
-  )) as unknown as {
-    StreamableHTTPClientTransport: {
-      new (url: URL, options?: unknown): unknown;
-    };
-  };
-
+  );
   const url = process.env.TAKO_MCP_URL ?? DEFAULT_TAKO_MCP_URL;
   const token = process.env.TAKO_API_TOKEN;
-  const transport = new StreamableHTTPClientTransport(
+  const transport = new (StreamableHTTPClientTransport as any)(
     new URL(url),
     token ? { requestInit: { headers: { Authorization: `Bearer ${token}` } } } : undefined,
   );
-  const client = new Client({ name: "agent-rita-companion", version: "1.0.0" });
+  const client = new (Client as any)({ name: "agent-rita-companion", version: "1.0.0" });
   await client.connect(transport);
   return client;
 }
 
-function getClient(): Promise<{ callTool: (params: unknown, unknown_: unknown, opts: unknown) => Promise<unknown> }> {
+function getClient(): Promise<unknown> {
   if (!clientPromise) {
     clientPromise = connect().catch((err: unknown) => {
       clientPromise = null;
