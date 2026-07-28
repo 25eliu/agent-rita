@@ -8,6 +8,8 @@
  * same class as Tavily/Daytona/OpenAI calls — the agent itself still never
  * opens MCP connections.
  */
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { getLogger } from "../../../lib/logger";
 
 const logger = getLogger(["mcp", "tako"]);
@@ -34,25 +36,21 @@ export interface TakoCallResult {
   isError: boolean;
 }
 
-let clientPromise: Promise<unknown> | null = null;
+let clientPromise: Promise<Client> | null = null;
 
-async function connect(): Promise<unknown> {
-  const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
-  const { StreamableHTTPClientTransport } = await import(
-    "@modelcontextprotocol/sdk/client/streamableHttp.js"
-  );
+async function connect(): Promise<Client> {
   const url = process.env.TAKO_MCP_URL ?? DEFAULT_TAKO_MCP_URL;
   const token = process.env.TAKO_API_TOKEN;
-  const transport = new (StreamableHTTPClientTransport as any)(
+  const transport = new StreamableHTTPClientTransport(
     new URL(url),
     token ? { requestInit: { headers: { Authorization: `Bearer ${token}` } } } : undefined,
   );
-  const client = new (Client as any)({ name: "agent-rita-companion", version: "1.0.0" });
+  const client = new Client({ name: "agent-rita-companion", version: "1.0.0" });
   await client.connect(transport);
   return client;
 }
 
-function getClient(): Promise<unknown> {
+function getClient(): Promise<Client> {
   if (!clientPromise) {
     clientPromise = connect().catch((err: unknown) => {
       clientPromise = null;
@@ -89,26 +87,13 @@ export async function callTakoTool(
 ): Promise<TakoCallResult> {
   const attempt = async (): Promise<TakoCallResult> => {
     const client = await getClient();
-
-    // Type guard: client must have callTool method
-    if (typeof client !== "object" || client === null || typeof (client as { callTool?: unknown }).callTool !== "function") {
-      throw new Error("Invalid SDK client");
-    }
-
-    const result = await (client as { callTool: Function }).callTool({ name, arguments: args }, undefined, {
+    const result = await client.callTool({ name, arguments: args }, undefined, {
       timeout: TAKO_CALL_TIMEOUT_MS,
     });
-
-    // Type guards for unknown result from SDK
-    if (typeof result !== "object" || result === null) {
-      throw new Error("Expected object result from callTool");
-    }
-
-    const resultObj = result as { content?: unknown; structuredContent?: unknown; isError?: unknown };
     return {
-      text: textOf(resultObj.content),
-      structured: resultObj.structuredContent,
-      isError: resultObj.isError === true,
+      text: textOf(result.content),
+      structured: result.structuredContent,
+      isError: result.isError === true,
     };
   };
   try {
