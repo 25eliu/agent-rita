@@ -89,7 +89,13 @@ export async function callTakoTool(
 ): Promise<TakoCallResult> {
   const attempt = async (): Promise<TakoCallResult> => {
     const client = await getClient();
-    const result = await client.callTool({ name, arguments: args }, undefined, {
+
+    // Type guard: client must have callTool method
+    if (typeof client !== "object" || client === null || typeof (client as { callTool?: unknown }).callTool !== "function") {
+      throw new Error("Invalid SDK client");
+    }
+
+    const result = await (client as { callTool: Function }).callTool({ name, arguments: args }, undefined, {
       timeout: TAKO_CALL_TIMEOUT_MS,
     });
 
