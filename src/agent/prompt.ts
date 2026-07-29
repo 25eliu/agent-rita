@@ -288,7 +288,7 @@ function buildDateSection(request: QueryRequest): string {
   let section =
     `CURRENT DATE: ${formatCurrentDate(new Date(), request.timezone)}. This is today — it is authoritative. ` +
     "Your training data ends earlier, so for anything time-sensitive (recent events, news, \"latest\"/\"current\"/\"this year\", or date math) rely on this date rather than your training assumptions. " +
-    "When you call web_search for recent information, use the year shown here.";
+    "When you search the web for recent information, use the year shown here.";
   if (request.timezone) section += `\nUser timezone: ${request.timezone}`;
   return section;
 }
