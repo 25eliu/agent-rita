@@ -372,6 +372,7 @@ app.use(
       "mcp-session-id",
       "mcp-protocol-version",
       "last-event-id",
+      "x-openbb-user",
     ],
     exposeHeaders: ["mcp-session-id"],
   }),
