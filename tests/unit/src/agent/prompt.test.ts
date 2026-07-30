@@ -22,7 +22,7 @@ function w(overrides: Partial<Widget> = {}): Widget {
 describe("buildSystemPrompt — base content", () => {
   it("always includes the base rules and tool priority", () => {
     const out = buildSystemPrompt(req());
-    expect(out).toContain("financial assistant integrated into OpenBB Workspace");
+    expect(out).toContain("financial agent for the OpenBB Workspace");
     expect(out).toContain("Never fabricate data");
     expect(out).toContain("TOOL PRIORITY (strict order for data analysis");
   });
@@ -344,5 +344,32 @@ describe("buildSystemPrompt — MCP section matches registration", () => {
   it("omits the MCP section when nothing is registered", () => {
     const out = buildSystemPrompt(req({ tools: agentTools }), { mcpToolEntries: [] });
     expect(out).not.toContain("MCP Tools");
+  });
+});
+
+describe("buildSystemPrompt — no widgets but MCP tools registered", () => {
+  const mcpEntry = {
+    sanitizedName: "tako_search",
+    description: "A live data source for company financials.",
+  };
+
+  // The model used to answer "I don't have a data source for that" while an
+  // MCP data tool sat registered and unused.
+  it("does not claim there are no data sources when an MCP tool is registered", () => {
+    const out = buildSystemPrompt(req(), { mcpToolEntries: [mcpEntry] as never });
+    expect(out).not.toContain("No widgets or data sources are currently available");
+    expect(out).toContain("No widgets are connected in this session");
+    expect(out).toContain("before telling the user you have no data source");
+  });
+
+  it("still says there are no data sources when nothing is registered", () => {
+    const out = buildSystemPrompt(req());
+    expect(out).toContain("No widgets or data sources are currently available");
+  });
+
+  it("frames MCP tools as data sources, not last resorts", () => {
+    const out = buildSystemPrompt(req(), { mcpToolEntries: [mcpEntry] as never });
+    expect(out).toContain("data sources in their own right");
+    expect(out).not.toContain("use only when connected widgets do not cover");
   });
 });
